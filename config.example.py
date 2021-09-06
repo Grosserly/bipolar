@@ -1,4 +1,4 @@
-from typing import Set
+from typing import Literal, Optional, Set
 import logging
 import sys
 
@@ -25,9 +25,11 @@ MODEL_CACHE_SIZE: int = 5
 AYY_LMAO: bool = True
 
 # Redis database credentials
-REDIS_HOST: str = ""
-REDIS_PORT: int = 0
-REDIS_PASSWORD: str = ""
+REDIS_USERNAME: Optional[str] = None
+REDIS_PASSWORD: Optional[str] = None
+REDIS_HOST: str = "localhost"
+REDIS_PORT: int = 6379
+REDIS_INDEX: int = 0
 
 # Python logging module configuration
 logging.basicConfig(
