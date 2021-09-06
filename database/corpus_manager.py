@@ -1,4 +1,4 @@
-from typing import List, Union, cast
+from typing import Dict, List, Union, cast
 from utils.types import ParrotInterface
 from discord import User, Member, Message
 from exceptions import NoDataError, NotRegisteredError
@@ -38,6 +38,17 @@ class CorpusManager:
         corpus = cast(List[str], await self.bot.redis.hvals(f"corpus:{user.id}"))
         if len(corpus) == 0:
             raise NoDataError(f"No data available for user {user}.")
+        return corpus
+
+    async def get_dict(self, user: Union[User, Member]) -> Dict[int, str]:
+        """ Get a corpus by user ID as a "message_id: message" dict. """
+        await self.assert_registered(user)
+        key_vals = cast(List[str], await self.bot.redis.hgetall(f"corpus:{user.id}"))
+        if len(key_vals) == 0:
+            raise NoDataError(f"No data available for user {user}.")
+        corpus: Dict[int, str] = {}
+        for i in range(0, len(key_vals), 2):
+            corpus[int(key_vals[i])] = key_vals[i + 1]
         return corpus
 
     async def delete(self, user: Union[User, Member]) -> None:
