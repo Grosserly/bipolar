@@ -8,8 +8,8 @@ import config
 import os
 import logging
 import aiohttp
-from functools import lru_cache
 from aioredis import Redis
+from utils.async_deleteable_lru_cache import async_deleteable_lru_cache
 from utils.parrot_markov import ParrotMarkov
 from utils import regex
 from database.redis_set import RedisSet
