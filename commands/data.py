@@ -120,6 +120,9 @@ class Data(commands.Cog):
             # Delete the user's corpus.
             await self.bot.corpora.delete(user)
 
+            # Delete the user's cached model, if present.
+            self.bot.get_model.delete(user)
+
             # Invalidate this confirmation code
             del self.pending_confirmations[confirm_code]
 
