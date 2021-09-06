@@ -6,9 +6,7 @@ from utils.types import ParrotInterface
 
 import config
 import os
-import time
 import logging
-import time
 import aiohttp
 from functools import lru_cache
 from aioredis import Redis
