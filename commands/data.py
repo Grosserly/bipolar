@@ -24,7 +24,8 @@ class Data(commands.Cog):
 
         # Upload to file.io, a free filesharing service where the file is
         #   deleted once it's downloaded.
-        with BytesIO(json.dumps(self.bot.corpora.get(user)).encode()) as fp:
+        corpus = await self.bot.corpora.get(user)
+        with BytesIO(json.dumps(corpus).encode()) as fp:
             async with self.bot.http_session.post(
                 "https://file.io/",
                 data={
@@ -71,7 +72,7 @@ class Data(commands.Cog):
         if user != ctx.author and ctx.author.id not in self.bot.owner_ids:
             raise UserPermissionError("You are not allowed to make Parrot forget other users.")
 
-        if not self.bot.corpora.has(user):
+        if not await self.bot.corpora.has(user):
             raise NoDataError(f"No data available for user {user}.")
 
         confirm_code = ctx.message.id
@@ -117,7 +118,7 @@ class Data(commands.Cog):
             user = confirmation["corpus_owner"]
 
             # Delete the user's corpus.
-            self.bot.corpora.remove(user)
+            await self.bot.corpora.delete(user)
 
             # Invalidate this confirmation code
             del self.pending_confirmations[confirm_code]

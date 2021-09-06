@@ -71,14 +71,14 @@ class Quickstart(commands.Cog):
 
         # Show the user where they can use Quickstart within this server if they
         #   use the command in a channel where Parrot can't learn.
-        if ctx.channel.id not in self.bot.learning_channels:
+        if not await self.bot.learning_channels.has(ctx.channel.id):
             embed = ParrotEmbed(
                 title="Quickstart Channels",
                 description="Quickstart is available in channels where Parrot can learn from your messages. Try running Quickstart again in one of these channels:",
             )
             channel_mentions = []
             for channel in ctx.guild.channels:
-                if channel.id in self.bot.learning_channels:
+                if await self.bot.learning_channels.has(channel.id):
                     channel_mentions.append(channel.mention)
             
             paginator = Paginator.FromList(

@@ -72,10 +72,10 @@ class Admin(commands.Cog):
         Give Parrot permission to learn in a new channel.
         Parrot will start to collect messages from registered users in this channel.
         """
-        if channel.id in self.bot.learning_channels:
+        if await self.bot.learning_channels.has(channel.id):
             await ctx.send(f"⚠ Already learning in {channel.mention}!")
         else:
-            self.bot.learning_channels.add(channel.id)
+            await self.bot.learning_channels.add(channel.id)
             await ctx.send(f"✅ Now learning in {channel.mention}.")
 
 
@@ -89,10 +89,10 @@ class Admin(commands.Cog):
         Give Parrot permission to speak in a new channel.
         Parrot will be able to imitate people in this channel.
         """
-        if channel.id in self.bot.speaking_channels:
+        if await self.bot.speaking_channels.has(channel.id):
             await ctx.send(f"⚠ Already able to speak in {channel.mention}!")
         else:
-            self.bot.speaking_channels.add(channel.id)
+            await self.bot.speaking_channels.add(channel.id)
             await ctx.send(f"✅ Now able to speak in {channel.mention}.")
 
 
@@ -119,8 +119,8 @@ class Admin(commands.Cog):
         Remove Parrot's permission to learn in a channel.
         Parrot will stop collecting messages in this channel.
         """
-        if channel.id in self.bot.learning_channels:
-            self.bot.learning_channels.remove(channel.id)
+        if await self.bot.learning_channels.has(channel.id):
+            await self.bot.learning_channels.remove(channel.id)
             await ctx.send(f"❌ No longer learning in {channel.mention}.")
         else:
             await ctx.send(f"⚠ Already not learning in {channel.mention}!")
@@ -136,8 +136,8 @@ class Admin(commands.Cog):
         Remove Parrot's permission to speak in a channel.
         Parrot will no longer be able to imitate people in this channel.
         """
-        if channel.id in self.bot.speaking_channels:
-            self.bot.speaking_channels.remove(channel.id)
+        if await self.bot.speaking_channels.has(channel.id):
+            await self.bot.speaking_channels.remove(channel.id)
             await ctx.send(f"❌ No longer able to speak in {channel.mention}.")
         else:
             await ctx.send(f"⚠ Already not able to speak in {channel.mention}!")
@@ -158,7 +158,7 @@ class Admin(commands.Cog):
         embed = ParrotEmbed(title="Parrot is learning from these channels:")
         channel_mentions = []
         for channel in ctx.guild.channels:
-            if channel.id in self.bot.learning_channels:
+            if await self.bot.learning_channels.has(channel.id):
                 channel_mentions.append(channel.mention)
         
         paginator = Paginator.FromList(
@@ -176,7 +176,7 @@ class Admin(commands.Cog):
         embed = ParrotEmbed(title="Parrot is learning from these channels:")
         channel_mentions = []
         for channel in ctx.guild.channels:
-            if channel.id in self.bot.speaking_channels:
+            if await self.bot.speaking_channels.has(channel.id):
                 channel_mentions.append(channel.mention)
         
         paginator = Paginator.FromList(

@@ -28,7 +28,7 @@ class MessageEventHandler(commands.Cog):
         # Ignore NotRegisteredErrors; Parrot shouldn't learn from non-registered
         # users, anyway.
         try:
-            self.bot.learn_from(message)
+            await self.bot.learn_from(message)
             tag = f"{message.author.name}#{message.author.discriminator}"
             logging.info(f"Collected a message (ID: {message.id}) from user {tag} (ID: {message.author.id})")
         except NotRegisteredError:

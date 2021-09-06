@@ -1,5 +1,5 @@
-from typing import Iterator, Set, Union
-from redis import Redis
+from typing import Awaitable, Iterator, cast, Union
+from aioredis import Redis
 
 # The valid Redis value types
 RedisSetValue = Union[bytes, str, int, float]
@@ -11,24 +11,20 @@ class RedisSet:
         self.redis = redis
         self.key = key
 
-    def __contains__(self, value: object) -> bool:
-        return self.redis.sismember(self.key, value)
+    async def has(self, element: RedisSetValue) -> bool:
+        return await self.redis.sismember(self.key, element)
 
-    def __iter__(self) -> Iterator[RedisSetValue]:
-        return iter(self.data)
+    async def values(self) -> Iterator[RedisSetValue]:
+        return await self.redis.smembers(self.key)
 
-    def __len__(self) -> int:
-        return self.redis.scard(self.key)
+    async def size(self) -> int:
+        return await cast(Awaitable[int], self.redis.scard(self.key))
 
-    def add(self, element: RedisSetValue) -> None:
-        self.redis.sadd(self.key, element)
+    async def add(self, element: RedisSetValue) -> None:
+        await self.redis.sadd(self.key, element)
 
-    def remove(self, element: RedisSetValue) -> None:
-        self.redis.srem(self.key, element)
+    async def remove(self, element: RedisSetValue) -> None:
+        await self.redis.srem(self.key, element)
 
-    def clear(self) -> None:
-        self.redis.delete(self.key)
-
-    @property
-    def data(self) -> Set[RedisSetValue]:
-        return self.redis.smembers(self.key)
+    async def clear(self) -> None:
+        await self.redis.delete(self.key)

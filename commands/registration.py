@@ -48,7 +48,7 @@ class Registration(commands.Cog):
         if who is not None and who.id != ctx.author.id:
             raise FriendlyError("You can only register yourself.")
 
-        self.bot.registered_users.add(ctx.author.id)
+        await self.bot.registered_users.add(ctx.author.id)
 
         embed = ParrotEmbed(
             title="✅ Registered!",
@@ -72,7 +72,7 @@ class Registration(commands.Cog):
         if who is not None and who.id != ctx.author.id:
             raise FriendlyError("You can only unregister yourself.")
 
-        self.bot.registered_users.remove(ctx.author.id)
+        await self.bot.registered_users.remove(ctx.author.id)
 
         embed = ParrotEmbed(
             title="Unregistered!",
@@ -98,7 +98,7 @@ class Registration(commands.Cog):
         Check if you're registered with Parrot.
         You need to be registered for Parrot to be able to analyze your messages and imitate you.
         """
-        if ctx.author.id in self.bot.registered_users:
+        if await self.bot.registered_users.has(ctx.author.id):
             await ctx.send("✅ You are currently registered with Parrot.")
         else:
             await ctx.send("❌ You are not currently registered with Parrot.")

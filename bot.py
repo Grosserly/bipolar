@@ -10,8 +10,8 @@ import time
 import logging
 import time
 import aiohttp
-from redis import Redis
 from functools import lru_cache
+from aioredis import Redis
 from utils.parrot_markov import ParrotMarkov
 from utils import regex
 from database.redis_set import RedisSet
@@ -52,6 +52,9 @@ class Parrot(ParrotInterface):
 
     def __del__(self) -> None:
         self.http_session.close()
+        self.loop.create_task(
+            self.redis.close()
+        )
 
 
     def _list_filenames(self, directory: str) -> List[str]:
@@ -76,23 +79,13 @@ class Parrot(ParrotInterface):
                 logging.error(f"{error}\n")
 
 
-    def run(self, token: str, *, bot: bool=True, reconnect: bool=True) -> None:
-        redis_is_ready = self.redis.ping()
-        if not redis_is_ready:
-            logging.warn("Waiting for the database to finish loading...")
-        while not redis_is_ready:
-            time.sleep(1/10)
-            redis_is_ready = self.redis.ping()
-        return super().run(token, bot=bot, reconnect=reconnect)
-
-
-    @lru_cache(maxsize=config.MODEL_CACHE_SIZE)
-    def get_model(self, user_id: int) -> ParrotMarkov:
+    @async_deleteable_lru_cache(maxsize=config.MODEL_CACHE_SIZE)
+    async def get_model(self, user_id: int) -> ParrotMarkov:
         """ Get a Markov model by user ID. """
-        return ParrotMarkov(self.corpora.get(user_id))
+        return ParrotMarkov(await self.corpora.get(user_id))
         
 
-    def validate_message(self, message: Message) -> bool:
+    async def validate_message(self, message: Message) -> bool:
         """
         A message must pass all of these checks before Parrot can learn from it.
         """
@@ -126,7 +119,7 @@ class Parrot(ParrotInterface):
             not message.webhook_id and
 
             # Parrot must be allowed to learn in this channel.
-            message.channel.id in self.learning_channels and
+            await self.learning_channels.has(message.channel.id) and
 
             # People will often say "v" or "z" on accident while spamming,
             # and it doesn't really make for good learning material.
@@ -134,7 +127,7 @@ class Parrot(ParrotInterface):
         )
 
 
-    def learn_from(self, message: Message) -> None:
+    async def learn_from(self, message: Message) -> None:
         """ Add a message to a user's corpus. """
-        if self.validate_message(message):
-            self.corpora.add(message.author, message)
+        if await self.validate_message(message):
+            await self.corpora.add(message.author, message)

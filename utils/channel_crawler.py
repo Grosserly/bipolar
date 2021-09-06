@@ -2,13 +2,16 @@ from typing import Callable
 from discord import Message
 from discord.iterators import _FilteredAsyncIterator
 
+import inspect
+
 
 class ChannelCrawler:
     def __init__(self, history: _FilteredAsyncIterator, action: Callable[[Message], bool]):
         self.num_collected = 0
         self.running = True
-        self._action = action
         self._history = history
+        self._action = self._ensure_async(action)
+
 
     async def crawl(self) -> None:
         """
@@ -19,7 +22,7 @@ class ChannelCrawler:
             if not self.running:
                 break
 
-            if self._action(message):
+            if await self._action(message):
                 self.num_collected += 1
 
         self.running = False
@@ -27,3 +30,14 @@ class ChannelCrawler:
 
     def stop(self) -> None:
         self.running = False
+
+
+    def _ensure_async(func: Callable) -> Callable:
+        """ Wrap a function in a coroutine. """
+        if inspect.iscoroutinefunction(func):
+            return func
+
+        async def wrapper(*args, **kwargs):
+            return func(*args, **kwargs)
+
+        return wrapper

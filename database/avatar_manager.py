@@ -17,7 +17,7 @@ class AvatarManager:
     @a.lru_cache(maxsize=5)
     async def fetch(self, user: User) -> str:
         ledger: ModifiedAvatar = {}
-        response = self.bot.redis.hget("avatars", str(user.id))
+        response = await self.bot.redis.hget("avatars", str(user.id))
         avatar_channel = await self.bot.fetch_channel(self.AVATAR_DATABASE_CHANNEL_ID)
 
         if response is not None:
@@ -50,12 +50,12 @@ class AvatarManager:
         )
 
         # Update the avatar database with the new avatar URL.
-        # FUTURE: If Parrot ever gets an async DB client, this can become a
-        # background task like deleting the old message is.
         ledger["original_avatar_url"] = str(user.avatar_url)
         ledger["modified_avatar_url"] = message.attachments[0].url
         ledger["source_message_id"] = message.id
-        self.bot.redis.hset("avatars", str(user.id), json.dumps(ledger))
+        self.bot.loop.create_task(
+            self.bot.redis.hset("avatars", str(user.id), json.dumps(ledger))
+        )
 
         return ledger["modified_avatar_url"]
 

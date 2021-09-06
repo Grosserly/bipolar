@@ -12,7 +12,7 @@ import aiohttp
 from database.avatar_manager import AvatarManager
 from database.corpus_manager import CorpusManager
 from discord.ext.commands import AutoShardedBot
-from redis import Redis
+from aioredis import Redis
 from database.redis_set import RedisSet
 from utils.parrot_markov import ParrotMarkov
 
@@ -45,19 +45,19 @@ class ParrotInterface(AutoShardedBot, metaclass=abc.ABCMeta):
         )
 
     @abc.abstractmethod
-    def get_model(self, user_id: int) -> ParrotMarkov:
+    async def get_model(self, user_id: int) -> ParrotMarkov:
         """ Get a Markov model by user ID. """
         raise NotImplementedError
 
     @abc.abstractmethod
-    def validate_message(self, message: Message) -> bool:
+    async def validate_message(self, message: Message) -> bool:
         """
         A message must pass all of these checks before Parrot can learn from it.
         """
         raise NotImplementedError
 
     @abc.abstractmethod
-    def learn_from(self, message: Message) -> int:
+    async def learn_from(self, message: Message) -> int:
         """ Add a message to a user's corpus. """
         raise NotImplementedError
 
