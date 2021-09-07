@@ -5,8 +5,6 @@ from bot import Parrot
 
 logging.info("Initializing bot...")
 
-redis_url = f"{config.REDIS_HOST}"
-
 bot = Parrot(
     prefix=config.COMMAND_PREFIX,
     admin_user_ids=config.ADMIN_USER_IDS,
