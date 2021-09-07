@@ -1,6 +1,6 @@
 from typing import List, Set
 from discord import Activity, ActivityType, AllowedMentions, ChannelType, Message
-from utils.types import ParrotInterface
+from discord.ext.commands import AutoShardedBot
 
 import config
 import os
@@ -15,7 +15,7 @@ from database.corpus_manager import CorpusManager
 from database.avatar_manager import AvatarManager
 
 
-class Parrot(ParrotInterface):
+class Parrot(AutoShardedBot):
     def __init__(
         self, *,
         prefix: str,
