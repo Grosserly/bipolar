@@ -52,13 +52,10 @@ class CorpusManager:
     async def get_dict(self, user: Union[User, Member]) -> Dict[int, str]:
         """ Get a corpus by user ID as a "message_id: message" dict. """
         await self.assert_registered(user)
-        key_vals = cast(List[str], await self.bot.redis.hgetall(f"corpus:{user.id}"))
-        if len(key_vals) == 0:
+        corpus = cast(Dict[str, str], await self.bot.redis.hgetall(f"corpus:{user.id}"))
+        if len(corpus) == 0:
             raise NoDataError(f"No data available for user {user}.")
-        corpus: Dict[int, str] = {}
-        for i in range(0, len(key_vals), 2):
-            corpus[int(key_vals[i])] = key_vals[i + 1]
-        return corpus
+        return { int(key): value for key, value in corpus.items() }
 
     async def delete(self, user: Union[User, Member]) -> None:
         """ Delete a corpus from the source of truth. """
