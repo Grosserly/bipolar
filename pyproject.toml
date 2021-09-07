@@ -11,7 +11,6 @@ python = "^3.7"
 jishaku = "^1.19.2"
 markovify = "^0.8.3"
 ujson = "^4.0.1"
-redis = "^3.5.3"
 Pillow = "^8.3.1"
 asyncstdlib = "^3.9.2"
 aioredis = {extras = ["hiredis"], version = "^2.0.0"}
