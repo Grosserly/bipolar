@@ -77,5 +77,6 @@ class CorpusManager:
         )
 
     async def assert_registered(self, user: Union[User, Member]) -> None:
+        """ Assert that a user is registered. """
         if not user.bot and not (await self.bot.registered_users.has(user.id)):
             raise NotRegisteredError(f"User {user} is not registered. To register, read the privacy policy with `{self.bot.command_prefix}policy`, then register with `{self.bot.command_prefix}register`.")
