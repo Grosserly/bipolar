@@ -1,5 +1,5 @@
 from typing import List, Set
-from discord import Activity, ActivityType, AllowedMentions, ChannelType, Message
+from discord import Activity, ActivityType, AllowedMentions, ChannelType, Message, User
 from discord.ext.commands import AutoShardedBot
 
 import config
@@ -7,7 +7,8 @@ import os
 import logging
 import aiohttp
 from aioredis import Redis
-from utils.async_deleteable_lru_cache import async_deleteable_lru_cache
+#from utils.async_deleteable_lru_cache import async_deleteable_lru_cache
+import asyncstdlib as a
 from utils.parrot_markov import ParrotMarkov
 from utils import regex
 from database.redis_set import RedisSet
@@ -76,10 +77,10 @@ class Parrot(AutoShardedBot):
                 logging.error(f"{error}\n")
 
 
-    @async_deleteable_lru_cache(maxsize=config.MODEL_CACHE_SIZE)
-    async def get_model(self, user_id: int) -> ParrotMarkov:
+    @a.lru_cache(maxsize=config.MODEL_CACHE_SIZE)
+    async def get_model(self, user: User) -> ParrotMarkov:
         """ Get a Markov model by user ID. """
-        return ParrotMarkov(await self.corpora.get(user_id))
+        return ParrotMarkov(await self.corpora.get(user))
         
 
     async def validate_message(self, message: Message) -> bool:
@@ -90,7 +91,7 @@ class Parrot(AutoShardedBot):
 
         return (
             # Text content not empty.
-            # mypy is giving some nonsense error that doesn't occur in runtime
+            # mypy gives some nonsense error that doesn't occur in runtime
             len(content) > 0 and  # type: ignore
 
             # Not a Parrot command.
