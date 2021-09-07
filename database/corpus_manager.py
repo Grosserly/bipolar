@@ -1,7 +1,16 @@
-from typing import Dict, List, Union, cast
-from utils.types import ParrotInterface
+from typing import Dict, List, NamedTuple, Union, cast
 from discord import User, Member, Message
+from utils.parrot_markov import ParrotMarkov
+from aioredis import Redis
+from database.redis_set import RedisSet
 from exceptions import NoDataError, NotRegisteredError
+
+
+class ParrotInterface(NamedTuple):
+    redis: Redis
+    registered_users: RedisSet
+    get_model: ParrotMarkov
+    command_prefix: str
 
 
 class CorpusManager:

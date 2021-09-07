@@ -1,10 +1,20 @@
-from utils.types import ModifiedAvatar, ParrotInterface
+from typing import Any, Callable, Coroutine, NamedTuple
+from utils.types import ModifiedAvatar
 from discord import File, TextChannel, User
+from asyncio.events import AbstractEventLoop
+from aioredis import Redis
+from aiohttp import ClientSession
 
 import asyncstdlib as a
 import ujson as json  # ujson is faster
 from io import BytesIO
 from PIL import Image, ImageOps
+
+class ParrotInterface(NamedTuple):
+    redis: Redis
+    loop: AbstractEventLoop
+    http_session: ClientSession
+    fetch_channel: Callable[[int], Coroutine[Any, Any, TextChannel]]
 
 
 class AvatarManager:
