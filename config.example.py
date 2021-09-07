@@ -19,7 +19,7 @@ ADMIN_ROLE_IDS: Set[int] = set()
 COMMAND_PREFIX: str = "|"
 
 # Number of Markov chain models to cache at once
-MODEL_CACHE_SIZE: int = 5
+MODEL_CACHE_SIZE: int = 20
 
 # Whether or not to say "lmao" when someone says "ayy"
 AYY_LMAO: bool = True
