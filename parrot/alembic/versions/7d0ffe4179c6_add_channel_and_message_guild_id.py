@@ -100,20 +100,22 @@ def upgrade() -> None:
 				logging.warning(
 					f"Failed to fetch channel {db_channel.id}: {exc}"
 				)
+				db_channel.guild_id = ErrorCode.REQUEST_FAILED.value
+				session.add(db_channel)
 				continue
 			if not isinstance(channel, discord.TextChannel):
 				logging.warning(
-					"Invalid channel type: "
-					f"{db_channel.id} is {type(channel)}. "
-					"Defaulting channel.guild_id to 0 and skipping"
+					f"Invalid channel type: {db_channel.id} is {type(channel)}"
 				)
+				db_channel.guild_id = ErrorCode.INVALID_TYPE.value
+				session.add(db_channel)
 				continue
-			channels.append(channel)
-			db_channel.guild_id = channel.guild.id
-			session.add(db_channel)
 			logging.debug(
 				f"Channel {db_channel.id} in guild {db_channel.guild_id}"
 			)
+			db_channel.guild_id = channel.guild.id
+			channels.append(channel)
+			session.add(db_channel)
 		return channels
 
 	async def process_messages(channels: list[discord.TextChannel]) -> None:

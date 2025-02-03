@@ -21,6 +21,7 @@ class ErrorCode(Enum):
 	UNPROCESSED = 0
 	NOT_FOUND = -1
 	REQUEST_FAILED = -2
+	INVALID_TYPE = -3
 
 
 class Channel(PModel, table=True):
