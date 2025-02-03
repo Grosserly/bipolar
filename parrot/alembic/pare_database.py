@@ -25,7 +25,7 @@ def main() -> None:
 
 	logging.info("Paring message table")
 	db_messages_count: int = session.execute(
-		sa.func.count(v1.Messages.id)  # type: ignore -- it works
+		sm.func.count(v1.Messages.id)  # type: ignore -- it works
 	).scalar()
 	logging.info(f"Initial message count: {db_messages_count}")
 	logging.info(
@@ -46,7 +46,7 @@ def main() -> None:
 	)
 
 	db_messages_count: int = session.execute(
-		sa.func.count(v1.Messages.id)  # type: ignore
+		sm.func.count(v1.Messages.id)  # type: ignore
 	).scalar()
 	logging.info(f"New message count: {db_messages_count}")
 
