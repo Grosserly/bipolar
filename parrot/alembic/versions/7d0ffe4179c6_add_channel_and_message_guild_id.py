@@ -13,6 +13,7 @@ Create Date: 2025-01-21 14:40:18.601522
 
 import logging
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import discord
 import sqlalchemy as sa
@@ -20,6 +21,7 @@ import sqlmodel as sm
 from parrot import config
 from parrot.alembic.common import cleanup_models, count
 from parrot.utils import cast_not_none
+from parrot.utils.types import Snowflake
 from tqdm import tqdm
 
 from alembic import op
@@ -118,6 +120,70 @@ def upgrade() -> None:
 			session.add(db_channel)
 		return channels
 
+	@dataclass
+	class After(discord.abc.Snowflake):
+		id: Snowflake
+
+	AFTER = After(0)
+
+	async def search_channel(
+		channel: discord.TextChannel,
+		candidate: r7d0ffe4179c6.Message,
+	) -> tuple[int, bool]:
+		"""
+		Get a chunk of messages after the chosen message (inclusive).
+		The chosen message is relevant, and chances are ones near it are too.
+		:param channel: channel to search for the message in.
+		:param candidate: database form of the message to search for.
+		:return: (number of relevant messages processed,
+		         whether the API request succeeded).
+		"""
+		try:
+			# The largest chunk we can get from this API in one call is 100.
+			# Does NOT include the input message in the response, so 1 is
+			# subtracted from the ID to have Discord also include the input
+			# message.
+			AFTER.id = candidate.id - 1
+			messages = [
+				message
+				async for message in channel.history(limit=100, after=AFTER)
+			]
+		except KeyboardInterrupt:
+			raise
+		except Exception as exc:
+			logging.warning(
+				"Request for messages after"
+				f"{channel.guild.id}/{channel.id}/{candidate.id} "
+				f"failed: {exc}"
+			)
+			candidate.guild_id = ErrorCode.REQUEST_FAILED.value
+			session.add(candidate)
+			return 1, False
+
+		# Get any yet-unprocessed messages from the database that match the ones
+		# in the chunk.
+		message_ids = (message.id for message in messages)
+		db_messages = session.exec(
+			sm.select(r7d0ffe4179c6.Message).where(
+				sm.col(r7d0ffe4179c6.Message.id).in_(message_ids),
+				r7d0ffe4179c6.Message.guild_id == 0,
+			)
+		)
+		# Fill in the guild IDs and channel IDs for those messages in the
+		# database.
+		num_found = 0
+		for db_message, message in zip(db_messages, messages):
+			# logging.debug(
+			# 	f"Message {db_message.id} in guild/channel "
+			# 	f"{db_message.guild_id}/{db_message.channel_id}"
+			# )
+			# message.guild guaranteed to exist because we got it from a guild
+			db_message.guild_id = cast_not_none(message.guild).id
+			db_message.channel_id = message.channel.id
+			session.add(db_message)
+			num_found += 1
+		return num_found, True
+
 	async def process_messages(channels: list[discord.TextChannel]) -> None:
 		"""
 		Scattershot scraping strategy: process chunks of 100 messages all over
@@ -137,73 +203,40 @@ def upgrade() -> None:
 		Still, these calls _may_ end up finding other relevant messages.
 		"""
 		db_messages_count = count(session, r7d0ffe4179c6.Message.id)
-		# Progress bar
-		with tqdm(total=db_messages_count, desc="Messages processed") as t:
-			# Pick an unprocessed message. Which one, doesn't matter.
-			statement = (
-				sm.select(r7d0ffe4179c6.Message)
-				.where(r7d0ffe4179c6.Message.guild_id == 0)
-				.limit(1)
+		# "Pick an unprocessed message. Which one, doesn't matter."
+		statement = (
+			sm.select(r7d0ffe4179c6.Message)
+			.where(
+				r7d0ffe4179c6.Message.guild_id == ErrorCode.UNPROCESSED.value
 			)
+			.limit(1)
+		)
+		with tqdm(
+			total=db_messages_count, desc="Messages processed"
+		) as progress_bar:
 			# Repeat until all messages from the database are processed.
-			while (db_message := session.exec(statement).first()) is not None:
+			while (candidate := session.exec(statement).first()) is not None:
 				# Look for the message in every learning channel.
+				# Great part is this may incidentally find other relevant
+				# messages we didn't ask for.
 				for channel in channels:
-					try:
-						# Get a chunk of messages around the chosen message.
-						# The chosen message is relevant, and chances are ones
-						# near it are too.
-						# The largest chunk we can get from Discord's API in one
-						# call is 100.
-						messages = [
-							message
-							async for message in channel.history(
-								limit=100, around=db_message
-							)
-						]
-					except Exception as exc:
-						logging.warning(
-							"Request for messages around"
-							f"{channel.guild.id}/{channel.id}/{db_message.id} "
-							f"failed: {exc}"
-						)
-						db_message.guild_id = ErrorCode.REQUEST_FAILED.value
-						t.update()
-						continue
-					message_ids = (message.id for message in messages)
-					# Get any yet-unprocessed messages from the database that
-					# match the ones in the chunk.
-					db_messages = session.exec(
-						sm.select(r7d0ffe4179c6.Message).where(
-							sm.col(r7d0ffe4179c6.Message.id).in_(message_ids),
-							r7d0ffe4179c6.Message.guild_id == 0,
-						)
+					num_found, candidate_found = await search_channel(
+						channel, candidate
 					)
-					# Fill in the guild IDs and channel IDs for those messages
-					# in the database.
-					for db_message, message in zip(db_messages, messages):
-						# message.guild guaranteed to exist because we got it
-						# from a guild
-						db_message.guild_id = cast_not_none(message.guild).id
-						db_message.channel_id = message.channel.id
-						session.add(db_message)
-						logging.debug(
-							f"Message {db_message.id} in guild/channel "
-							f"{db_message.guild_id}/{db_message.channel_id}"
-						)
-						t.update()
-				if db_message.guild_id == ErrorCode.UNPROCESSED.value:
-					# Very important failsafe otherwise we may get stuck
-					# selecting the same unprocessable message over and over
+					progress_bar.update(n=num_found)
+					if candidate_found:
+						break
+				else:
+					# Candidate message never found.
+					# Mark it processed, otherwise we may get stuck with the
+					# database selecting the same unprocessable message over and
+					# over.
 					logging.warning(
-						f"Message {db_message.id} not found in learning "
-						"channels"
+						f"Message {candidate.id} not found in learning channels"
 					)
-					db_message.guild_id = db_message.channel_id = (
-						ErrorCode.NOT_FOUND.value
-					)
-					t.update()
-					session.add(db_message)
+					candidate.guild_id = ErrorCode.NOT_FOUND.value
+					session.add(candidate)
+					progress_bar.update(n=1)
 				session.commit()
 
 	@client.event
