@@ -17,8 +17,7 @@ alembic_cfg = context.config
 if alembic_cfg.config_file_name is not None:
 	fileConfig(alembic_cfg.config_file_name)
 
-# Use current SQLModel MetaData for autogenerating, but not while upgrading.
-# Upgrades don't need SQLModel, and in fact get confused when it's there.
+# Use current SQLModel MetaData for autogenerating
 if "--autogenerate" in sys.argv:
 	import sqlmodel as sm
 	from parrot.db import models  # noqa: F401
