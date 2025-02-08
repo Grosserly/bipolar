@@ -131,8 +131,12 @@ class FuzzyMemberlike(Memberlike):
 				f'"{config.command_prefix}imitate someone" is only available '
 				"in regular server text channels."
 			)
-		# list of users who are both in this channel and registered
-		registered_members_here = await cast(
+		registered_member_ids_here = await cast(
 			Parrot, ctx.bot
-		).crud.guild.get_registered_members(ctx.guild)
-		return random.choice(registered_members_here)
+		).crud.guild.get_registered_member_ids(ctx.guild)
+		if len(registered_member_ids_here) == 0:
+			raise UserNotFoundError(
+				"Nobody is registered with Parrot in this server."
+			)
+		member_id = random.choice(registered_member_ids_here)
+		return await ctx.guild.fetch_member(member_id)

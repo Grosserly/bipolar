@@ -28,7 +28,7 @@ class Parrot(commands.AutoShardedBot):
 
 		intents = discord.Intents.default()
 		intents.message_content = True
-		intents.members = config.enable_imitate_someone
+		intents.members = True
 
 		super().__init__(
 			command_prefix=config.command_prefix,
@@ -61,6 +61,7 @@ class Parrot(commands.AutoShardedBot):
 			tg.create_task(self.load_extension("jishaku"))
 			tg.create_task(self.load_extension_folder("event_listeners"))
 			tg.create_task(self.load_extension_folder("commands"))
+			tg.create_task(self.load_extension_folder("cogs"))
 
 		self.antiavatars = await AntiavatarManager.new(self)
 

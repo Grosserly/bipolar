@@ -1,3 +1,4 @@
+import datetime as dt
 import logging
 
 import discord
@@ -14,6 +15,14 @@ db_url: str = "sqlite:////var/lib/parrot/db.sqlite3"
 
 # Seconds between database commits
 autosave_interval_seconds: int = 3600
+
+# How long to hold messages in a guild after the author has left the guild they
+# posted them in.
+# Gathering messages is a lot of work so this is protection against people who
+# leave and come back after like one day
+message_retention_period_seconds: int = int(
+	dt.timedelta(days=90).total_seconds()
+)
 
 # Allow the cache of generated models to take up to this much space in
 # memory
@@ -32,10 +41,6 @@ avatar_store_channel_id: Snowflake
 # Random probability on [0, 1] to reply to a message with its content
 # filtered through `weasel.wawa`
 random_wawa_chance: float = 0.005
-
-# Enable the `|imitate someone` feature.
-# Requires Server Members intent
-enable_imitate_someone: bool = True
 
 # Time to allow a text modification command (which is liable to run forever) to
 # run before canceling it

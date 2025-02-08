@@ -1,4 +1,3 @@
-from collections.abc import Iterable
 from typing import TYPE_CHECKING, cast
 
 import discord
@@ -116,7 +115,6 @@ class CRUDMessage(SubCRUD):
 			)
 			for message in messages_filtered
 		)
-		self.bot.db_session.commit()
 
 		return messages_filtered
 
@@ -132,5 +130,4 @@ class CRUDMessage(SubCRUD):
 		if db_message is None:
 			return None
 		self.bot.db_session.delete(db_message)
-		self.bot.db_session.commit()
 		return db_message

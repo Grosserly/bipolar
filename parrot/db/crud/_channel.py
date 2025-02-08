@@ -31,8 +31,6 @@ class CRUDChannel(SubCRUD):
 			db_channel = p.Channel(id=channel.id, guild_id=channel.guild.id)
 		setattr(db_channel, permission, value)
 		self.bot.db_session.add(db_channel)
-		self.bot.db_session.commit()
-		self.bot.db_session.refresh(db_channel)
 		# Flag's value is different now because of this call
 		# (including if you create a new row just to set the flag to False)
 		return True
@@ -63,5 +61,10 @@ class CRUDChannel(SubCRUD):
 		db_channel = cast_not_none(self.bot.db_session.exec(statement).first())
 		db_channel.webhook_id = webhook.id
 		self.bot.db_session.add(db_channel)
-		self.bot.db_session.commit()
-		self.bot.db_session.refresh(db_channel)
+
+	def delete(self, channel: discord.TextChannel) -> bool:
+		db_channel = self.bot.db_session.get(p.Channel, channel.id)
+		if db_channel is None:
+			return False
+		self.bot.db_session.delete(db_channel)
+		return True

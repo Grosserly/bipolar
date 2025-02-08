@@ -74,6 +74,20 @@ class CRUDMember(SubCRUD):
 				original_url=avatar_info_in.original_url,
 			)
 		)
+
+	def mark_gone(self, member: discord.Member) -> bool:
+		membership = self._get(member)
+		if membership is None:
+			return False
+		membership.ended_since = discord.utils.time_snowflake(dt.datetime.now())
+		self.bot.db_session.add(membership)
+		return True
+
+	def mark_present(self, member: discord.Member) -> bool:
+		membership = self._get(member)
+		if membership is None:
+			return False
+		membership.ended_since = None
 		self.bot.db_session.add(membership)
 		return True
 
