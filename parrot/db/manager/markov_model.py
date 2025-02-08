@@ -33,7 +33,7 @@ class MarkovModelManager:
 		corpus = self.crud.member.get_messages_content(member)
 		result = await markov.ParrotText.new(corpus)
 		while self.space_used + len(result) > MarkovModelManager.MAX_MEM_SIZE:
-			_, evicted = self.cache.popitem(last=False)
+			evicted: markov.ParrotText = self.cache.popitem(last=False)[1]
 			logging.debug(
 				" ** Full "
 				f"({self.space_used}/{MarkovModelManager.MAX_MEM_SIZE}); "
