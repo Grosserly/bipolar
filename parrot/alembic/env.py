@@ -1,5 +1,5 @@
+import logging.config
 import sys
-from logging.config import fileConfig
 
 from parrot import config as parrot_cfg
 from parrot.db import NAMING_CONVENTION
@@ -15,7 +15,7 @@ alembic_cfg = context.config
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if alembic_cfg.config_file_name is not None:
-	fileConfig(alembic_cfg.config_file_name)
+	logging.config.fileConfig(alembic_cfg.config_file_name)
 
 # Use current SQLModel MetaData for autogenerating
 if "--autogenerate" in sys.argv:
