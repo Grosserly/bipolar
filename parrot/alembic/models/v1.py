@@ -5,7 +5,7 @@ https://github.com/garlic-os/parrot/blob/53a95b8/bot.py#L56-L82
 Ported/preserved for migrations
 """
 
-# from parrot.alembic.typess import ISODateString
+# from parrot.alembic.common import ISODateString
 from parrot.db import NAMING_CONVENTION
 from parrot.utils.types import Snowflake
 from sqlmodel import Field, SQLModel

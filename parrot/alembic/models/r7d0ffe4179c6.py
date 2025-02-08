@@ -7,7 +7,7 @@ from enum import Enum
 
 import sqlalchemy as sa
 import sqlmodel as sm
-from parrot.alembic.typess import PModel
+from parrot.alembic.common import PModel
 from parrot.db import GuildMeta
 from parrot.utils.types import Snowflake
 

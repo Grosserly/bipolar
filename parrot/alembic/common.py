@@ -1,8 +1,22 @@
 from types import ModuleType
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 import sqlalchemy as sa
 import sqlmodel as sm
+
+
+# Type alias to denote a string that is (supposed to be) in ISO 8601 format
+ISODateString = str
+
+
+class PModel(sm.SQLModel):
+	"""Parrot Model
+
+	SQLModel class but the __table__ property is unhidden because I need it in
+	my migrations
+	"""
+
+	__table__: ClassVar[sa.Table]
 
 
 def cleanup_models(models_module: ModuleType) -> None:
