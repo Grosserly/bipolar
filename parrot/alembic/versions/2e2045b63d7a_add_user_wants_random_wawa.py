@@ -1,4 +1,4 @@
-"""add member wants random wawa
+"""add user wants random wawa
 
 Revision ID: 2e2045b63d7a
 Revises: 6fe6f57202e8
@@ -22,7 +22,7 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
 	op.add_column(
-		"member",
+		"user",
 		sa.Column(
 			"wants_random_wawa",
 			sa.Boolean(),
@@ -33,4 +33,4 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-	op.drop_column("member", "wants_random_wawa")
+	op.drop_column("user", "wants_random_wawa")

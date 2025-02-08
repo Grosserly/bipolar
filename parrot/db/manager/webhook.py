@@ -40,8 +40,8 @@ class WebhookManager:
 			return webhook
 		except (Forbidden, HTTPException, AttributeError):
 			# - Forbidden: Parrot lacks permission to make webhooks here.
-			# - AttributeError: Cannot make a webhook in this type of channel, like
-			#   a DMChannel.
-			# - HTTPException: 400 Bad Request; there is already the maximum number
-			#   of webhooks allowed in this channel (10).
+			# - AttributeError: Cannot make a webhook in this type of channel,
+			#   like a DMChannel.
+			# - HTTPException: 400 Bad Request; there is already the maximum
+			#   number of webhooks allowed in this channel (10 last I checked).
 			return None

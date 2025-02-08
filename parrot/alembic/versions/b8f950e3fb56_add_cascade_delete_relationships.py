@@ -20,12 +20,12 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-	with op.batch_alter_table("memberguildlink") as batch_op:
+	with op.batch_alter_table("membership") as batch_op:
 		batch_op.drop_constraint(
-			op.f("fk_memberguildlink_member_id_member"), type_="foreignkey"
+			op.f("fk_membership_member_id_member"), type_="foreignkey"
 		)
 		batch_op.create_foreign_key(
-			None, "member", ["member_id"], ["id"], ondelete="CASCADE"
+			None, "user", ["member_id"], ["id"], ondelete="CASCADE"
 		)
 	try:
 		with op.batch_alter_table("message") as batch_op:
@@ -36,24 +36,24 @@ def upgrade() -> None:
 		logging.warning(exc)
 	with op.batch_alter_table("message") as batch_op:
 		batch_op.create_foreign_key(
-			None, "member", ["author_id"], ["id"], ondelete="CASCADE"
+			None, "user", ["author_id"], ["id"], ondelete="CASCADE"
 		)
-	with op.batch_alter_table("avatarinfo") as batch_op:
+	with op.batch_alter_table("antiavatar") as batch_op:
 		batch_op.drop_constraint(
-			op.f("fk_avatarinfo_member_id_member"), type_="foreignkey"
+			op.f("fk_antiavatar_member_id_member"), type_="foreignkey"
 		)
 		batch_op.create_foreign_key(
-			None, "member", ["member_id"], ["id"], ondelete="CASCADE"
+			None, "user", ["member_id"], ["id"], ondelete="CASCADE"
 		)
 
 
 def downgrade() -> None:
-	with op.batch_alter_table("memberguildlink") as batch_op:
+	with op.batch_alter_table("membership") as batch_op:
 		batch_op.drop_constraint(
-			op.f("fk_memberguildlink_member_id_member"), type_="foreignkey"
+			op.f("fk_membership_member_id_member"), type_="foreignkey"
 		)
 		batch_op.create_foreign_key(
-			None, "member", ["member_id"], ["id"], ondelete=None
+			None, "user", ["member_id"], ["id"], ondelete=None
 		)
 	with op.batch_alter_table("message") as batch_op:
 		batch_op.drop_constraint(
@@ -61,15 +61,15 @@ def downgrade() -> None:
 		)
 		batch_op.create_foreign_key(
 			op.f("fk_messages_user_id_users"),
-			"member",
+			"user",
 			["author_id"],
 			["id"],
 			ondelete=None,
 		)
-	with op.batch_alter_table("avatarinfo") as batch_op:
+	with op.batch_alter_table("antiavatar") as batch_op:
 		batch_op.drop_constraint(
-			op.f("fk_avatarinfo_member_id_member"), type_="foreignkey"
+			op.f("fk_antiavatar_member_id_member"), type_="foreignkey"
 		)
 		batch_op.create_foreign_key(
-			None, "member", ["member_id"], ["id"], ondelete=None
+			None, "user", ["member_id"], ["id"], ondelete=None
 		)

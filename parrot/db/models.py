@@ -35,51 +35,78 @@ class Channel(SQLModel, table=True):
 	webhook_id: Snowflake | None = None
 	guild_id: Snowflake = Field(foreign_key="guild.id")
 
-	guild: "Guild" = Relationship(back_populates="channels")
+	# Explicit Channel delete conditions:
+	# - Channel is deleted on Discord
+	# Cascades:
+	# - Losing a channel does not mean losing the guild
+	# - Losing a channel loses all the messages therein
+	messages: list["Message"] = Relationship(cascade_delete=True)
 
 
 class Message(SQLModel, table=True):
 	id: Snowflake = Field(primary_key=True)
 	content: str
-	author_id: Snowflake = Field(foreign_key="member.id")
-	channel_id: Snowflake  # no foreign key constraint because it's not needed
+	author_id: Snowflake = Field(foreign_key="user.id")
+	channel_id: Snowflake = Field(foreign_key="channel.id")
 	guild_id: Snowflake = Field(foreign_key="guild.id")
 	# Messages are going to be SELECTed almost exclusively by these columns, so
-	# add an index for them
+	# declare an index for them
 	__table_args__ = (
 		sa.Index("ix_guild_id_author_id", "guild_id", "author_id"),
 	)
 
-	author: "Member" = Relationship(back_populates="messages")
-	guild: "Guild" = Relationship(back_populates="messages")
+	# Explicit Message delete conditions:
+	# - Message is deleted on Discord
+	# Cascades:
+	# - None
 
 
-class MemberGuildLink(SQLModel, table=True):
-	member_id: Snowflake | None = Field(
-		default=None, foreign_key="member.id", primary_key=True
+class Membership(SQLModel, table=True):
+	"""User-Guild relationship"""
+
+	user_id: Snowflake | None = Field(
+		default=None, foreign_key="user.id", primary_key=True
 	)
 	guild_id: Snowflake | None = Field(
 		default=None, foreign_key="guild.id", primary_key=True
 	)
 	is_registered: bool = False
+	# Timestamp denoting when a user left this guild.
+	# None if the user is still there.
+	ended_since: Snowflake | None = None
 
-	member: "Member" = Relationship(back_populates="guild_links")
-	guild: "Guild" = Relationship(back_populates="member_links")
+	# Explicit Membership delete conditions:
+	# - User has been gone from a guild for long enough, so Parrot autoforgets
+	#   - NOT immediately after a user leaves a guild
+	# - (TODO) user does a guild-specific version of |forget me
+	# Cascades:
+	# - Concluding a user will not rejoin a guild does not mean the user does
+	#   not exist anymore
+	# - Concluding a user will not rejoin a guild does not mean the guild does
+	#   not exist anymore
+	# - If a user is not in a guild anymore, then we should forget the
+	#   corresponding Antiavatar
+	# - All messages from this user in this guild should be forgotten
+	user: "User" = Relationship(back_populates="memberships")
+	guild: "Guild" = Relationship(back_populates="memberships")
+	antiavatar: "Antiavatar | None" = Relationship(cascade_delete=True)
+	messages: list[Message] = Relationship(cascade_delete=True)
 
 
-class Member(SQLModel, table=True):
+class User(SQLModel, table=True):
 	id: Snowflake = Field(primary_key=True)
 	wants_random_wawa: bool = True
 
-	guild_links: list[MemberGuildLink] = Relationship(
-		back_populates="member",
+	# Explicit User delete conditions:
+	# - User does |forget me
+	# - User leaves all guilds in common with Parrot
+	# - User is deleted on Discord (which just manifests as the previous one)
+	# Cascades:
+	# - Forgetting a user means forgetting their guild memberships
+	#   - Associated avatar and messages deleted on cascade in Membership table
+	memberships: list[Membership] = Relationship(
+		back_populates="user",
 		cascade_delete=True,
-	)
-	messages: list[Message] = Relationship(
-		back_populates="author", cascade_delete=True
-	)
-	avatars: list["AvatarInfo"] = Relationship(
-		back_populates="member", cascade_delete=True
 	)
 
 
@@ -88,27 +115,32 @@ class Guild(SQLModel, table=True):
 	imitation_prefix: str = GuildMeta.default_imitation_prefix
 	imitation_suffix: str = GuildMeta.default_imitation_suffix
 
-	member_links: list[MemberGuildLink] = Relationship(back_populates="guild")
-	channels: list[Channel] = Relationship(back_populates="guild")
-	avatars: list["AvatarInfo"] = Relationship(back_populates="guild")
-	messages: list[Message] = Relationship(back_populates="guild")
+	# Explicit Guild delete conditions:
+	# - Guild is deleted on Discord
+	# Cascades:
+	# - A guild being deleted deletes the channels therein
+	# - A guild being deleted deletes the membership relations therein
+	# - Messages deleted in Membership cascade
+	memberships: list[Membership] = Relationship(
+		back_populates="guild", cascade_delete=True
+	)
+	channels: list[Channel] = Relationship(cascade_delete=True)
 
 
-# A separate table from MemberGuildLink to group this as one
-# None-or-not-None unit
-class AvatarInfoBase(SQLModel):
-	original_avatar_url: str
-	antiavatar_url: str
-	antiavatar_message_id: Snowflake
+class AntiavatarBase(SQLModel):
+	original_url: str
+	url: str
+	message_id: Snowflake
 
 
-class AvatarInfo(AvatarInfoBase, table=True):
-	member_id: Snowflake = Field(foreign_key="member.id", primary_key=True)
+# TODO (optimization): merge these across guilds for users who don't use
+# guild-specific avatars/don't have Premium
+class Antiavatar(AntiavatarBase, table=True):
+	"""Avatar info linked to a Membership"""
+
+	user_id: Snowflake = Field(foreign_key="user.id", primary_key=True)
 	guild_id: Snowflake = Field(foreign_key="guild.id", primary_key=True)
 
-	member: Member = Relationship(back_populates="avatars")
-	guild: Guild = Relationship(back_populates="avatars")
 
-
-class AvatarInfoCreate(AvatarInfoBase):
+class AntiavatarCreate(AntiavatarBase):
 	pass

@@ -48,7 +48,7 @@ class AntiavatarManager:
 		return self
 
 	async def fetch(self, member: discord.Member) -> str:
-		info = self.bot.crud.member.get_avatar_info(member)
+		info = self.bot.crud.member.get_antiavatar(member)
 
 		has_preexisting_antiavatar = info is not None
 		if has_preexisting_antiavatar:
@@ -58,10 +58,10 @@ class AntiavatarManager:
 			# returned instead."
 			has_changed_avatar = AntiavatarManager._url_id(
 				member.display_avatar.url
-			) == AntiavatarManager._url_id(info.original_avatar_url)
+			) == AntiavatarManager._url_id(info.original_url)
 			if not has_changed_avatar:
 				# Use the cached antiavatar.
-				return info.antiavatar_url
+				return info.url
 
 			# Else, user has changed their avatar here; respect the user's
 			# privacy by deleting the message with their old avatar.
@@ -81,18 +81,18 @@ class AntiavatarManager:
 		)
 
 		# Record the information to access it later.
-		self.bot.crud.member.set_avatar_info(
+		self.bot.crud.member.set_antiavatar(
 			member,
-			p.AvatarInfoCreate(
-				antiavatar_message_id=message.id,
-				antiavatar_url=message.attachments[0].url,
-				original_avatar_url=member.display_avatar.url,
+			p.AntiavatarCreate(
+				message_id=message.id,
+				url=message.attachments[0].url,
+				original_url=member.display_avatar.url,
 			),
 		)
 		return message.attachments[0].url
 
-	async def delete_antiavatar(self, avatar_info: p.AvatarInfo) -> None:
-		message_id = avatar_info.antiavatar_message_id
+	async def delete_antiavatar(self, avatar_info: p.Antiavatar) -> None:
+		message_id = avatar_info.message_id
 		try:
 			message = await self.avatar_channel.fetch_message(message_id)
 		except discord.NotFound:

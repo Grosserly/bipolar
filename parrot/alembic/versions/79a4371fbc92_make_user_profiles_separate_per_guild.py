@@ -1,4 +1,4 @@
-"""make member profiles separate per guild
+"""make user profiles separate per guild
 
 Forgets users' old is_registered value; no longer valid because the old value
 was global while the new value is guild-specific.
@@ -40,8 +40,8 @@ def upgrade() -> None:
 	from parrot.alembic.models import r79a4371fbc92
 
 	conn = op.get_bind()
-	r79a4371fbc92.MemberGuildLink.__table__.create(conn)
-	op.drop_column("member", "is_registered")
+	r79a4371fbc92.Membership.__table__.create(conn)
+	op.drop_column("user", "is_registered")
 
 	global target_metadata
 	target_metadata = sm.SQLModel.metadata
@@ -54,42 +54,41 @@ def upgrade() -> None:
 	@client.event
 	async def on_ready() -> None:
 		logging.info("Scraping Discord to populate guild IDs...")
-		db_members = session.exec(sm.select(r79a4371fbc92.Member)).all()
+		db_users = session.exec(sm.select(r79a4371fbc92.User)).all()
 		members_found: set[Snowflake] = set()
 		for guild in tqdm(client.guilds, desc="Guilds processed"):
 			async for member in guild.fetch_members(limit=None):
-				for db_member in db_members:
-					if db_member.id != member.id:
+				for db_user in db_users:
+					if db_user.id != member.id:
 						continue
 					# logging.debug(
-					# 	f"User {db_member.id} is a member of guild {guild.id}"
+					# 	f"User {db_user.id} is a member of guild {guild.id}"
 					# )
 					db_guild = session.get(
 						r79a4371fbc92.Guild, guild.id
 					) or r79a4371fbc92.Guild(id=guild.id)
 					session.add(
-						r79a4371fbc92.MemberGuildLink(
-							member=db_member,
+						r79a4371fbc92.Membership(
+							user=db_user,
 							guild=db_guild,
 						)
 					)
-					members_found.add(db_member.id)
+					members_found.add(db_user.id)
 					break
-		for db_member in db_members:
-			if db_member.id not in members_found:
-				logging.warning(f"No guilds found for user {db_member.id}")
+		for db_user in db_users:
+			if db_user.id not in members_found:
+				logging.warning(f"No guilds found for user {db_user.id}")
 		session.commit()
 		await client.close()
 
 	client.run(config.discord_bot_token)
-
 	cleanup_models(r79a4371fbc92)
 
 
 def downgrade() -> None:
-	op.drop_table("memberguildlink")
+	op.drop_table("membership")
 	op.add_column(
-		"member",
+		"user",
 		sa.Column(
 			"is_registered",
 			sa.Boolean(),

@@ -13,7 +13,6 @@ Create Date: 2025-01-21 14:40:18.601522
 
 import logging
 from collections.abc import Sequence
-from dataclasses import dataclass
 
 import discord
 import sqlalchemy as sa
@@ -21,7 +20,6 @@ import sqlmodel as sm
 from parrot import config
 from parrot.alembic.common import cleanup_models, count
 from parrot.utils import cast_not_none
-from parrot.utils.types import Snowflake
 from tqdm import tqdm
 
 from alembic import op
@@ -65,8 +63,8 @@ def upgrade() -> None:
 			)
 		)
 		# Developing this migration has made me realize Parrot sorely needs
-		# channel ID too to be able to remotely efficiently get further
-		# information from messages
+		# channel ID too to be able to remotely efficiently get information from
+		# messages. With this plus guild ID, we won't have to do this again.
 		batch_op.add_column(
 			sa.Column(
 				"channel_id",
@@ -120,18 +118,12 @@ def upgrade() -> None:
 			session.add(db_channel)
 		return channels
 
-	@dataclass
-	class After(discord.abc.Snowflake):
-		id: Snowflake
-
-	AFTER = After(0)
-
 	async def search_channel(
 		channel: discord.TextChannel,
 		candidate: r7d0ffe4179c6.Message,
 	) -> tuple[int, bool]:
 		"""
-		Get a chunk of messages after the chosen message (inclusive).
+		Get a chunk of messages around the chosen message (inclusive).
 		The chosen message is relevant, and chances are ones near it are too.
 		:param channel: channel to search for the message in.
 		:param candidate: database form of the message to search for.
@@ -140,13 +132,13 @@ def upgrade() -> None:
 		"""
 		try:
 			# The largest chunk we can get from this API in one call is 100.
-			# Does NOT include the input message in the response, so 1 is
-			# subtracted from the ID to have Discord also include the input
-			# message.
-			AFTER.id = candidate.id - 1
+			# May not contain the candidate, since we do not know if this is the
+			# channel it's really in.
 			messages = [
 				message
-				async for message in channel.history(limit=100, after=AFTER)
+				async for message in channel.history(
+					limit=100, around=candidate
+				)
 			]
 		except KeyboardInterrupt:
 			raise
@@ -172,17 +164,22 @@ def upgrade() -> None:
 		# Fill in the guild IDs and channel IDs for those messages in the
 		# database.
 		num_found = 0
-		for db_message, message in zip(db_messages, messages):
-			# logging.debug(
-			# 	f"Message {db_message.id} in guild/channel "
-			# 	f"{db_message.guild_id}/{db_message.channel_id}"
-			# )
-			# message.guild guaranteed to exist because we got it from a guild
-			db_message.guild_id = cast_not_none(message.guild).id
-			db_message.channel_id = message.channel.id
-			session.add(db_message)
-			num_found += 1
-		return num_found, True
+		for db_message in db_messages:
+			for message in messages:
+				if db_message.id != message.id:
+					continue
+				# logging.debug(
+				# 	f"Message {db_message.id} in guild/channel "
+				# 	f"{db_message.guild_id}/{db_message.channel_id}"
+				# )
+				# message.guild guaranteed to exist because we got it from a
+				# guild
+				db_message.guild_id = cast_not_none(message.guild).id
+				db_message.channel_id = message.channel.id
+				session.add(db_message)
+				num_found += 1
+				break
+		return num_found, candidate.guild_id != ErrorCode.UNPROCESSED.value
 
 	async def process_messages(channels: list[discord.TextChannel]) -> None:
 		"""
@@ -231,13 +228,12 @@ def upgrade() -> None:
 					# Mark it processed, otherwise we may get stuck with the
 					# database selecting the same unprocessable message over and
 					# over.
-					logging.warning(
+					logging.debug(
 						f"Message {candidate.id} not found in learning channels"
 					)
 					candidate.guild_id = ErrorCode.NOT_FOUND.value
 					session.add(candidate)
 					progress_bar.update(n=1)
-				session.commit()
 
 	@client.event
 	async def on_ready() -> None:
@@ -246,8 +242,8 @@ def upgrade() -> None:
 			channels = await process_channels()
 			await process_messages(channels)
 		except Exception as exc:
-			session.commit()
 			logging.error(exc)
+		session.commit()
 		await client.close()
 
 	client.run(config.discord_bot_token)

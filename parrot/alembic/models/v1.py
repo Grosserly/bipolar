@@ -31,9 +31,9 @@ class Messages(SQLModel, table=True):
 	id: Snowflake = Field(primary_key=True)
 	user_id: Snowflake = Field(foreign_key="users.id")
 	# This column's type is de facto `int | str`.
-	# See models.rfd7c085ab081.py.
 	# But! I can't type annotate that because Cannot Have A Union As A
 	# SQLAlchemy Field. Say that to this column's face SQLAlchemy.
+	# See models.rfd7c085ab081.py
 	timestamp: int  # | ISODateString
 	content: str
 

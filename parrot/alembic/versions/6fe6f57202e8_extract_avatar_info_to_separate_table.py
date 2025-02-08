@@ -27,30 +27,30 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
 	op.create_table(
-		"avatarinfo",
-		sa.Column("original_avatar_url", sa.String(), nullable=False),
-		sa.Column("antiavatar_url", sa.String(), nullable=False),
-		sa.Column("antiavatar_message_id", sa.BigInteger(), nullable=False),
-		sa.Column("member_id", sa.BigInteger(), nullable=False),
+		"antiavatar",
+		sa.Column("original_url", sa.String(), nullable=False),
+		sa.Column("url", sa.String(), nullable=False),
+		sa.Column("message_id", sa.BigInteger(), nullable=False),
+		sa.Column("user_id", sa.BigInteger(), nullable=False),
 		sa.Column("guild_id", sa.BigInteger(), nullable=False),
 		sa.ForeignKeyConstraint(["guild_id"], ["guild.id"]),
-		sa.ForeignKeyConstraint(["member_id"], ["member.id"]),
-		sa.PrimaryKeyConstraint("member_id", "guild_id"),
+		sa.ForeignKeyConstraint(["user_id"], ["user.id"]),
+		sa.PrimaryKeyConstraint("user_id", "guild_id"),
 	)
-	op.drop_column("member", "modified_avatar_url")
-	op.drop_column("member", "modified_avatar_message_id")
-	op.drop_column("member", "original_avatar_url")
+	op.drop_column("user", "modified_avatar_url")
+	op.drop_column("user", "modified_avatar_message_id")
+	op.drop_column("user", "original_avatar_url")
 
 
 def downgrade() -> None:
 	op.add_column(
-		"member", sa.Column("original_avatar_url", sa.String(), nullable=True)
+		"user", sa.Column("original_avatar_url", sa.String(), nullable=True)
 	)
 	op.add_column(
-		"member",
+		"user",
 		sa.Column("modified_avatar_message_id", sa.BigInteger(), nullable=True),
 	)
 	op.add_column(
-		"member", sa.Column("modified_avatar_url", sa.String(), nullable=True)
+		"user", sa.Column("modified_avatar_url", sa.String(), nullable=True)
 	)
-	op.drop_table("avatarinfo")
+	op.drop_table("antiavatar")

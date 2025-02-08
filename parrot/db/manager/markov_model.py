@@ -12,7 +12,7 @@ from parrot.utils.types import Snowflake
 
 
 class MarkovModelManager:
-	# A user-id, guild-id pair to uniquely identify a Member
+	# A user-id, guild-id pair to uniquely identify a guild membership
 	type Key = tuple[Snowflake, Snowflake]
 	MAX_MEM_SIZE = config.markov_cache_size_bytes
 

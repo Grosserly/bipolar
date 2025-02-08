@@ -12,7 +12,7 @@ from parrot.db import GuildMeta
 from parrot.utils.types import Snowflake
 
 
-__all__ = ["Channel", "Guild", "Member", "Message", "ErrorCode"]
+__all__ = ["ErrorCode", "Channel", "Guild", "Message", "User"]
 
 
 class ErrorCode(Enum):
@@ -41,7 +41,7 @@ class Guild(PModel, table=True):
 	...
 
 
-class Member(PModel, table=True):
+class User(PModel, table=True):
 	id: Snowflake = sm.Field(primary_key=True)
 	wants_random_wawa: bool = True
 	...
@@ -50,7 +50,7 @@ class Member(PModel, table=True):
 class Message(PModel, table=True):
 	id: Snowflake = sm.Field(primary_key=True)
 	content: str
-	author_id: Snowflake = sm.Field(foreign_key="member.id")
+	author_id: Snowflake = sm.Field(foreign_key="user.id")
 	# New
 	guild_id: Snowflake = sm.Field(foreign_key="guild.id")
 	channel_id: Snowflake

@@ -1,3 +1,4 @@
+import datetime as dt
 from collections.abc import Sequence
 
 import discord
@@ -10,22 +11,27 @@ from .types import SubCRUD
 
 
 class CRUDMember(SubCRUD):
-	def set_registered(self, member: discord.Member, value: bool) -> None:
-		statement = sm.select(p.MemberGuildLink).where(
-			p.MemberGuildLink.member_id == member.id,
-			p.MemberGuildLink.guild_id == member.guild.id,
+	"""
+	Actions on users in the context of a guild.
+	Takes Discord Member objects and acts on database Memberships.
+	"""
+
+	def _get(self, member: discord.Member) -> p.Membership | None:
+		statement = sm.select(p.Membership).where(
+			p.Membership.user_id == member.id,
+			p.Membership.guild_id == member.guild.id,
 		)
-		guild_link = self.bot.db_session.exec(
-			statement
-		).first() or p.MemberGuildLink(
-			member=self.bot.db_session.get(p.Member, member.id)
-			or p.Member(id=member.id),
+		return self.bot.db_session.exec(statement).first()
+
+	def set_registered(self, member: discord.Member, value: bool) -> None:
+		membership = self._get(member) or p.Membership(
+			user=self.bot.db_session.get(p.User, member.id)
+			or p.User(id=member.id),
 			guild=self.bot.db_session.get(p.Guild, member.guild.id)
 			or p.Guild(id=member.guild.id),
 		)
-		guild_link.is_registered = value
-		self.bot.db_session.add(guild_link)
-		self.bot.db_session.commit()
+		membership.is_registered = value
+		self.bot.db_session.add(membership)
 
 	def assert_registered(self, member: discord.Member) -> None:
 		if self.is_registered(member):
@@ -34,12 +40,8 @@ class CRUDMember(SubCRUD):
 	def is_registered(self, member: discord.Member) -> bool:
 		if member.bot:  # Bots are always counted as registered
 			return True
-		statement = sm.select(p.MemberGuildLink).where(
-			p.MemberGuildLink.member_id == member.id,
-			p.MemberGuildLink.guild_id == member.guild.id,
-		)
-		guild_link = self.bot.db_session.exec(statement).first()
-		return guild_link is not None and guild_link.is_registered
+		membership = self._get(member)
+		return membership is not None and membership.is_registered
 
 	def get_messages_content(self, member: discord.Member) -> Sequence[str]:
 		"""
@@ -52,24 +54,32 @@ class CRUDMember(SubCRUD):
 		)
 		return self.bot.db_session.exec(statement).all()
 
-	def get_avatar_info(self, member: discord.Member) -> p.AvatarInfo | None:
+	def get_antiavatar(self, member: discord.Member) -> p.Antiavatar | None:
 		self.assert_registered(member)
-		statement = sm.select(p.AvatarInfo).where(
-			p.AvatarInfo.member_id == member.id,
-			p.AvatarInfo.guild_id == member.guild.id,
+		statement = sm.select(p.Antiavatar).where(
+			p.Antiavatar.user_id == member.id,
+			p.Antiavatar.guild_id == member.guild.id,
 		)
 		return self.bot.db_session.exec(statement).first()
 
-	def set_avatar_info(
-		self, member: discord.Member, avatar_info_in: p.AvatarInfoCreate
+	def set_antiavatar(
+		self, member: discord.Member, avatar_info_in: p.AntiavatarCreate
 	) -> None:
-		avatar_info = p.AvatarInfo(
-			member_id=member.id,
-			guild_id=member.guild.id,
-			antiavatar_url=avatar_info_in.antiavatar_url,
-			antiavatar_message_id=avatar_info_in.antiavatar_message_id,
-			original_avatar_url=avatar_info_in.original_avatar_url,
+		self.bot.db_session.add(
+			p.Antiavatar(
+				user_id=member.id,
+				guild_id=member.guild.id,
+				url=avatar_info_in.url,
+				message_id=avatar_info_in.message_id,
+				original_url=avatar_info_in.original_url,
+			)
 		)
-		self.bot.db_session.add(avatar_info)
-		# self.bot.db_session.commit()
-		# self.bot.db_session.refresh(avatar_info)
+		self.bot.db_session.add(membership)
+		return True
+
+	async def delete_membership(self, membership: p.Membership) -> None:
+		db_user = membership.user
+		was_last_membership = len(db_user.memberships) == 1
+		self.bot.db_session.delete(membership)
+		if was_last_membership:
+			await self.bot.crud.user.delete_all_data(db_user)

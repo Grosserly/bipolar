@@ -1,6 +1,6 @@
-"""prune orphaned members
+"""prune orphaned users
 
-Deletes members found not to belong to any guild in 79a4371fbc92.
+Deletes users found not to belong to any guild in 79a4371fbc92.
 
 WARNING!!! This migration is irreversible. You should have a backup of your
 database before running migrations anyway but just saying
@@ -31,20 +31,18 @@ def upgrade() -> None:
 	from parrot.alembic.models import r79a4371fbc92
 
 	session = sm.Session(op.get_bind())
-	logging.info(
-		f"Initial member count: {count(session, r79a4371fbc92.Member.id)}"
-	)
+	logging.info(f"Initial user count: {count(session, r79a4371fbc92.User.id)}")
 	session.execute(
 		sm.text("""
-			DELETE FROM member
+			DELETE FROM user
 			WHERE (
-				SELECT COUNT(memberguildlink.member_id)
-				FROM memberguildlink
-				WHERE member_id = member.id
+				SELECT COUNT(membership.user_id)
+				FROM membership
+				WHERE membership.user_id = user.id
 			) == 0
 		""")
 	)
-	logging.info(f"New member count: {count(session, r79a4371fbc92.Member.id)}")
+	logging.info(f"New user count: {count(session, r79a4371fbc92.User.id)}")
 	session.commit()
 	cleanup_models(r79a4371fbc92)
 

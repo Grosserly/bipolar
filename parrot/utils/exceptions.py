@@ -1,3 +1,5 @@
+from typing import Self
+
 from parrot import config
 from parrot.utils.types import AnyUser
 
@@ -15,8 +17,9 @@ class _FriendlyError(Exception):
 class NotRegisteredError(_FriendlyError):
 	"""Parrot tried to access data from an unregistered user."""
 
-	def __init__(self, user: AnyUser):
-		super().__init__(
+	@classmethod
+	def User(cls, user: AnyUser) -> Self:
+		return cls(
 			f"User {user.mention} is not opted in to Parrot in this server. "
 			f"To opt in, do the `{config.command_prefix}register` command."
 		)
@@ -33,8 +36,9 @@ class TextNotFoundError(_FriendlyError):
 class UserNotFoundError(_FriendlyError):
 	"""Parrot tried to get a Discord user who does not exist."""
 
-	def __init__(self, text: str):
-		super().__init__(f'User "{text}" does not exist.')
+	@classmethod
+	def Username(cls, username: str) -> Self:
+		return cls(f'User "{username}" does not exist.')
 
 
 class FeatureDisabledError(_FriendlyError):
