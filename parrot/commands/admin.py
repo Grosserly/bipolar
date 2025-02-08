@@ -5,7 +5,14 @@ import parrot.db.models as p
 from parrot.bot import Parrot
 
 # from parrot.utils import Paginator, ParrotEmbed, cast_not_none, checks, tag
-from parrot.utils import ParrotEmbed, cast_not_none, checks, tag, trace
+from parrot.utils import (
+	ParrotEmbed,
+	cast_not_none,
+	checks,
+	send_help,
+	tag,
+	trace,
+)
 from parrot.utils.types import Permission
 
 
@@ -34,15 +41,6 @@ class Admin(commands.Cog):
 			await ctx.send("❌ Parrot can only delete its own messages.")
 			await ctx.message.add_reaction("❌")
 
-	async def send_help(self, ctx: commands.Context) -> None:
-		# "type: ignore" for "expected 1 more positional argument"
-		# discord.py itself had to do this too:
-		# https://github.com/Rapptz/discord.py/blob/4e03b17/discord/ext/commands/core.py#L588-L590
-		await cast_not_none(self.bot.get_command("help")).callback(
-			ctx,
-			command=cast_not_none(ctx.command.qualified_name),  # type: ignore
-		)
-
 	@commands.group(
 		aliases=["channels"],
 		invoke_without_command=True,
@@ -57,7 +55,7 @@ class Admin(commands.Cog):
 	) -> None:
 		"""Manage Parrot's channel permissions for this server."""
 		if action is None:
-			await self.send_help(ctx)
+			await send_help(ctx)
 
 	@channel.group(
 		aliases=["enable"],
@@ -73,7 +71,7 @@ class Admin(commands.Cog):
 	) -> None:
 		"""Give Parrot learning or speaking permission in a new channel."""
 		if channel_type is None:
-			await self.send_help(ctx)
+			await send_help(ctx)
 
 	@add.command(name="learning", brief="Let Parrot learn in a new channel.")
 	@trace
@@ -124,7 +122,7 @@ class Admin(commands.Cog):
 	) -> None:
 		"""Remove Parrot's learning or speaking permission in a channel."""
 		if channel_type is None:
-			await self.send_help(ctx)
+			await send_help(ctx)
 
 	@remove.command(
 		name="learning",
@@ -173,7 +171,7 @@ class Admin(commands.Cog):
 	) -> None:
 		"""View the channels Parrot can speak or learn in."""
 		if channel_type is None:
-			await self.send_help(ctx)
+			await send_help(ctx)
 
 	async def do_view_channels(
 		self,
@@ -254,7 +252,7 @@ class Admin(commands.Cog):
 	) -> None:
 		"""Manage Parrot's nickname for this server."""
 		if action is None:
-			await self.send_help(ctx)
+			await send_help(ctx)
 
 	@nickname.command(name="set")
 	@trace
@@ -263,7 +261,7 @@ class Admin(commands.Cog):
 	) -> None:
 		"""Change Parrot's nickname."""
 		if new_nick is None:
-			await self.send_help(ctx)
+			await send_help(ctx)
 			return
 		if ctx.guild is None:
 			await ctx.send("Discord nicknames are only available in servers.")
@@ -299,7 +297,7 @@ class Admin(commands.Cog):
 	) -> None:
 		"""Manage Parrot's imitation prefix for this server."""
 		if action is not None and action != "get":
-			await self.send_help(ctx)
+			await send_help(ctx)
 			return
 		await self.prefix_get(ctx)
 
@@ -338,7 +336,7 @@ class Admin(commands.Cog):
 	) -> None:
 		"""Manage Parrot's imitation suffix for this server."""
 		if action is not None and action != "get":
-			await self.send_help(ctx)
+			await send_help(ctx)
 			return
 		await self.suffix_get(ctx)
 
