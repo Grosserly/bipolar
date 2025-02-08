@@ -1,6 +1,6 @@
 import random
-from collections.abc import Iterable
-from typing import Self
+from collections.abc import Iterable, Sequence
+from typing import Self, cast
 
 import markovify
 
@@ -35,7 +35,22 @@ class ParrotText(markovify.Text):
 		return cls(corpus)
 
 	def __len__(self):
-		return len(self.chain.model)
+		"""Approximate the memory size of the underlying model.
+
+		Sums:
+		- the size of each state
+		- the size of each follow within each state
+		- the size of the int value associated with each follow
+		"""
+		total = 0
+		model = cast(dict[Sequence[str], dict[str, int]], self.chain.model)
+		for state in model:
+			for item in state:
+				total += len(item)
+			for follow in model[state]:
+				total += len(follow)
+			total += len(model[state]) * 4  # 4 bytes per int
+		return total
 
 
 class Gibberish(markovify.Text):
