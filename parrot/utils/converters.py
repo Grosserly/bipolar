@@ -38,19 +38,19 @@ class BaseMemberlike(commands.Converter):
 		# If this is not a guild, it must be a DM channel, and therefore the
 		# only person you can imitate is yourself.
 		if ctx.guild is None:
-			raise UserNotFoundError(argument)
+			raise UserNotFoundError.Username(argument)
 
 		# Strip the mention down to an ID.
 		try:
 			member_id = int(regex.snowflake.sub("", argument))
 		except ValueError:
-			raise UserNotFoundError(argument)
+			raise UserNotFoundError.Username(argument)
 
 		# Fetch the member by ID.
 		try:
 			return await ctx.guild.fetch_member(member_id)
 		except NotFound:
-			raise UserNotFoundError(argument)
+			raise UserNotFoundError.Username(argument)
 
 
 class Memberlike(BaseMemberlike):

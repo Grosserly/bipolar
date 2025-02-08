@@ -35,7 +35,7 @@ class CRUDMember(SubCRUD):
 
 	def assert_registered(self, member: discord.Member) -> None:
 		if self.is_registered(member):
-			raise NotRegisteredError(member)
+			raise NotRegisteredError.User(member)
 
 	def is_registered(self, member: discord.Member) -> bool:
 		if member.bot:  # Bots are always counted as registered
