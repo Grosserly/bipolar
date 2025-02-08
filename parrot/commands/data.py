@@ -1,35 +1,49 @@
 import asyncio
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 from tempfile import TemporaryFile
-from typing import cast
+from typing import Any, cast
 
 import discord
 import ujson
 from discord.ext import commands
 
 from parrot.bot import Parrot
-from parrot.utils import ParrotEmbed, tag, trace
+from parrot.utils import (
+	ParrotEmbed,
+	cast_not_none,
+	checks,
+	send_help,
+	tag,
+	trace,
+)
 from parrot.utils.converters import Memberlike
 from parrot.utils.exceptions import (
 	NoDataError,
 	UserNotFoundError,
 	UserPermissionError,
 )
-from parrot.utils.types import AnyUser, Snowflake
+from parrot.utils.types import Snowflake
 
 
-class Data(commands.Cog):
+type UserOrMember = discord.User | discord.Member
+
+# Key: Message ID of a forget command
+type ConfirmationStore = dict[Snowflake, Data.Confirmation]
+
+
+class Data[**P](commands.Cog):
 	"""Do things w/ ur data"""
 
 	@dataclass
 	class Confirmation:
-		requestor: AnyUser  # The forget command message's author
-		subject_user: AnyUser  # User for whose data to be forgotten
+		requestor: UserOrMember  # The forget command message's author
+		subject_user: UserOrMember  # User for whose data to be forgotten
 
 	def __init__(self, bot: Parrot):
-		# Key: Message ID of a forget command
-		self.pending_confirmations: dict[Snowflake, Data.Confirmation] = {}
 		self.bot = bot
+		self.pending_full_confirmations: ConfirmationStore = {}
+		self.pending_guild_confirmations: ConfirmationStore = {}
 
 	@commands.command(aliases=["checkout", "data"])
 	@commands.cooldown(2, 3600, commands.BucketType.user)
@@ -81,17 +95,15 @@ class Data(commands.Cog):
 		avatar_url = await self.bot.antiavatars.fetch(who_)
 		await ctx.send(avatar_url)
 
-	@commands.group()
-	@commands.cooldown(2, 4, commands.BucketType.user)
-	@trace
-	async def forget(
+	async def _start_forget(
 		self,
+		confirmation_store: ConfirmationStore,
+		confirmation_message_fmt: str,
 		ctx: commands.Context,
 		who: str | None = None,
-		*args,  # noqa: ANN002  im begging you please dont make me type annotate
-		**kwargs,  # noqa: ANN003  another var arg
+		*args: P.args,
+		**kwargs: P.kwargs,
 	) -> None:
-		"""Delete all the data Parrot has about you."""
 		if who is not None:
 			try:
 				who_ = await Memberlike().convert(ctx, who)
@@ -104,11 +116,7 @@ class Data(commands.Cog):
 		else:
 			who_ = ctx.author
 
-		if (
-			who_ != ctx.author
-			and self.bot.owner_ids is not None
-			and ctx.author.id not in self.bot.owner_ids
-		):
+		if who_ != ctx.author and not checks.is_admin(ctx) and not who_.bot:
 			raise UserPermissionError(
 				"You are not allowed to make Parrot forget other users."
 			)
@@ -119,7 +127,7 @@ class Data(commands.Cog):
 		confirm_code = ctx.message.id
 
 		# Keep track of this confirmation while it's still pending.
-		self.pending_confirmations[confirm_code] = Data.Confirmation(
+		confirmation_store[confirm_code] = Data.Confirmation(
 			requestor=ctx.author,
 			subject_user=who_,
 		)
@@ -127,44 +135,45 @@ class Data(commands.Cog):
 		embed = ParrotEmbed(
 			title="Are you sure?",
 			color_name=ParrotEmbed.Color.ORANGE,
-			description=(
-				f"This will permantently delete the data of {tag(who_)}.\n"
-				"To confirm, paste the following command:\n"
-				f"`{self.bot.command_prefix}forget confirm {confirm_code}`"
+			description=confirmation_message_fmt.format(
+				who=tag(who_), confirm_code=confirm_code
 			),
 		)
 		embed.set_footer(
 			text="Action will be automatically canceled in 1 minute."
 		)
 
-		await ctx.send(embed=embed, reference=ctx.message)
+		sent_message = await ctx.send(embed=embed, reference=ctx.message)
 
 		# Delete the confirmation after 1 minute.
 		await asyncio.sleep(60)
 		try:
-			del self.pending_confirmations[confirm_code]
+			del confirmation_store[confirm_code]
 		except KeyError:
 			pass
+		embed.description = "Request expired."
+		await sent_message.edit(embed=embed)
 
-	@forget.command(name="confirm", hidden=True)
-	@trace
-	@commands.cooldown(2, 4, commands.BucketType.user)
-	async def forget_confirm(
-		self, ctx: commands.Context, confirm_code: int
+	async def _confirm_forget(
+		self,
+		confirmation_store: ConfirmationStore,
+		action: Callable[[UserOrMember], Coroutine[Any, Any, Any]],
+		ctx: commands.Context,
+		confirm_code: Snowflake,
 	) -> None:
 		# You'd think that since this argument is typed as an int, it would come
 		# in as an int. But noooo, it comes in as a string
-		confirm_code = int(confirm_code)
-		confirmation = self.pending_confirmations.get(confirm_code, None)
+		confirm_code = Snowflake(confirm_code)
+		confirmation = confirmation_store.get(confirm_code, None)
 
 		if confirmation is not None and confirmation.requestor == ctx.author:
 			user = confirmation.subject_user
 
-			# Delete this user's data.
-			await self.bot.crud.user.delete_all_data(user)
+			# Perform the destructive action.
+			await action(user)
 
 			# Invalidate this confirmation code.
-			del self.pending_confirmations[confirm_code]
+			del confirmation_store[confirm_code]
 
 			await ctx.send(
 				embed=ParrotEmbed(
@@ -179,6 +188,98 @@ class Data(commands.Cog):
 			)
 		else:
 			await ctx.send(f"Confirmation code `{confirm_code}` is invalid.")
+
+	@commands.group(invoke_without_command=True)
+	async def forget(
+		self,
+		ctx: commands.Context,
+		who: str | None = None,
+		*args: P.args,
+		**kwargs: P.kwargs,
+	) -> None:
+		if who is None:
+			await send_help(ctx)
+
+	@forget.group()
+	@commands.cooldown(2, 4, commands.BucketType.user)
+	@trace
+	async def forget_everywhere(
+		self,
+		ctx: commands.Context,
+		who: str | None = None,
+		*args: P.args,
+		**kwargs: P.kwargs,
+	) -> None:
+		"""Delete ALL the data Parrot has about you."""
+		confirmation_message_fmt = (
+			"This will permanently delete the data of {{who}}.\n"
+			"To confirm, paste the following command:\n"
+			f"`{self.bot.command_prefix}forget full confirm {{confirm_code}}`"
+		)
+		await self._start_forget(
+			self.pending_full_confirmations,
+			confirmation_message_fmt,
+			ctx,
+			who,
+			*args,
+			**kwargs,
+		)
+
+	@forget_everywhere.command(name="confirm", hidden=True)
+	@trace
+	@commands.cooldown(2, 4, commands.BucketType.user)
+	async def forget_everywhere_confirm(
+		self, ctx: commands.Context, confirm_code: int
+	) -> None:
+		await self._confirm_forget(
+			self.pending_full_confirmations,
+			self.bot.crud.user.delete_all_data,
+			ctx,
+			confirm_code,
+		)
+
+	@forget.group()
+	@commands.cooldown(2, 4, commands.BucketType.user)
+	@commands.guild_only()
+	@trace
+	async def forget_here(
+		self,
+		ctx: commands.Context,
+		who: str | None = None,
+		*args: P.args,
+		**kwargs: P.kwargs,
+	) -> None:
+		"""Delete your messages in this server."""
+		confirmation_message_fmt = (
+			"This will permanently delete the messages collected from {{who}} "
+			f"in server {cast_not_none(ctx.guild).name}.\n"
+			"To confirm, paste the following command:\n"
+			f"`{self.bot.command_prefix}forget here confirm {{confirm_code}}`"
+		)
+		await self._start_forget(
+			self.pending_guild_confirmations,
+			confirmation_message_fmt,
+			ctx,
+			who,
+			*args,
+			**kwargs,
+		)
+
+	@forget_here.command(name="confirm", hidden=True)
+	@commands.cooldown(2, 4, commands.BucketType.user)
+	@commands.guild_only()
+	@trace
+	async def forget_here_confirm(
+		self, ctx: commands.Context, confirm_code: int
+	) -> None:
+		await self._confirm_forget(
+			self.pending_guild_confirmations,
+			# type: ignore -- will only ever receive Members because this
+			# command is guild-only
+			self.bot.crud.member.leave,  # type: ignore
+			ctx,
+			confirm_code,
+		)
 
 
 async def setup(bot: Parrot) -> None:

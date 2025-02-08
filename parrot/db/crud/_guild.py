@@ -92,7 +92,7 @@ class CRUDGuild(SubCRUD):
 				await guild.fetch_member(membership.user.id)
 			except discord.NotFound:
 				# User is truly not in this guild anymore
-				await self.bot.crud.member.delete_membership(membership)
+				await self.bot.crud.member.raw_delete_membership(membership)
 			else:
 				# User is actually still in this guild after all
 				membership.ended_since = None

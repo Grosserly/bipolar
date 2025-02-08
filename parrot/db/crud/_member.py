@@ -91,9 +91,16 @@ class CRUDMember(SubCRUD):
 		self.bot.db_session.add(membership)
 		return True
 
-	async def delete_membership(self, membership: p.Membership) -> None:
+	async def raw_delete_membership(self, membership: p.Membership) -> None:
 		db_user = membership.user
 		was_last_membership = len(db_user.memberships) == 1
 		self.bot.db_session.delete(membership)
 		if was_last_membership:
 			await self.bot.crud.user.delete_all_data(db_user)
+
+	async def leave(self, member: discord.Member) -> bool:
+		membership = self._get(member)
+		if membership is None:
+			return False
+		await self.raw_delete_membership(membership)
+		return True
