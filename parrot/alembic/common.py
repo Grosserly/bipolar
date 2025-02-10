@@ -1,5 +1,5 @@
 from types import ModuleType
-from typing import Any, ClassVar, cast
+from typing import ClassVar, cast
 
 import sqlalchemy as sa
 import sqlmodel as sm
@@ -38,5 +38,5 @@ def cleanup_models(models_module: ModuleType) -> None:
 		sm.SQLModel.metadata.remove(table)
 
 
-def count(session: sm.Session, column: Any) -> int | None:  # noqa: ANN401
+def count(session: sm.Session, column: sa.ColumnClause) -> int | None:
 	return session.execute(sa.func.count(column)).scalar()
